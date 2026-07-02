@@ -13,6 +13,9 @@ The app runs as a static web page. It prepares images/text for a narrow thermal 
 - Preview both the editable layout and the final raster that will be sent to the printer.
 - Tune dithering, threshold, contrast, heat level, and BLE sending speed.
 - Reconnect to the last permitted printer when the browser allows it.
+- Filtered Bluetooth picker: only printers show up, not every BLE device nearby.
+- Automatic reconnect when the BLE connection drops.
+- Battery level in the status bar when the printer exposes the standard battery service.
 
 ## Compatibility
 
@@ -96,12 +99,13 @@ This project does not need a build step.
 7. Use `Растр` preview to check what will actually print.
 8. Press `Печатать`.
 
-For short prints, keep `Режим печати` set to `Короткая`. If a long print stops after several centimeters, switch to `Длинная` or `Очень длинная`.
+For short prints, keep `Режим печати` set to `Быстрый`. If a long print stops after several centimeters, switch to `Надёжный` or `Медленный`.
 
 ## Troubleshooting
 
 If the printer does not appear:
 
+- If the picker list is empty, close it and press `Подключить` again: the second attempt lists all Bluetooth devices.
 - Turn Bluetooth off/on on the computer.
 - Turn the printer off/on.
 - Disconnect it from the phone app.
@@ -110,7 +114,7 @@ If the printer does not appear:
 
 If printing stops halfway:
 
-- Use `Режим печати -> Длинная` or `Очень длинная`.
+- Use `Режим печати -> Надёжный` or `Медленный`.
 - Lower the heat level slightly.
 - Try a shorter tape first.
 - Make sure the battery is charged.
