@@ -9,7 +9,8 @@ The app runs as a static web page. It prepares images/text for a narrow thermal 
 - Print from desktop Chrome without a vendor mobile app.
 - Add one or many images to a long tape layout.
 - Drag images on the tape and adjust scale/position with sliders.
-- Add text blocks.
+- Add text blocks and edit them in place: content, font, size, and padding of a selected block.
+- Fit tape length to the content with one click.
 - Preview both the editable layout and the final raster that will be sent to the printer.
 - Tune dithering, threshold, contrast, heat level, and BLE sending speed.
 - Reconnect to the last permitted printer when the browser allows it.

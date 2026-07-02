@@ -552,6 +552,16 @@
               Текст
               <textarea id="textInput" placeholder="Напечатать заметку, список, QR-подсказку..."></textarea>
             </label>
+            <label>
+              Шрифт
+              <select id="fontSelect">
+                <option value="mono" selected>Моноширинный</option>
+                <option value="bold-mono">Моноширинный жирный</option>
+                <option value="sans">Гротеск</option>
+                <option value="bold-sans">Гротеск жирный</option>
+                <option value="serif">Антиква</option>
+              </select>
+            </label>
             <div class="field-row">
               <label>
                 Размер
@@ -563,6 +573,7 @@
               </label>
             </div>
             <button id="renderTextBtn" type="button">Добавить текст</button>
+            <div class="hint">Выбранный текстовый блок редактируется этими полями наживую.</div>
           </div>
         </section>
 
@@ -586,7 +597,7 @@
             </div>
           </label>
           <div class="field-row">
-            <label>
+            <label title="Сюда ставятся новые объекты и раскладка «В колонку» — пунктирная линия на предпросмотре">
               Верхний отступ
               <input id="topPadInput" type="number" min="0" max="300" step="1" value="16" />
             </label>
@@ -598,6 +609,7 @@
           <div class="button-grid">
             <button id="shortTapeBtn" type="button">Короткая</button>
             <button id="longTapeBtn" type="button">Длинная</button>
+            <button id="fitTapeBtn" type="button">По содержимому</button>
           </div>
         </section>
 
@@ -782,6 +794,7 @@
       stackBtn: document.getElementById("stackBtn"),
       clearObjectsBtn: document.getElementById("clearObjectsBtn"),
       textInput: document.getElementById("textInput"),
+      fontSelect: document.getElementById("fontSelect"),
       fontSizeInput: document.getElementById("fontSizeInput"),
       textPaddingInput: document.getElementById("textPaddingInput"),
       renderTextBtn: document.getElementById("renderTextBtn"),
@@ -791,6 +804,7 @@
       feedInput: document.getElementById("feedInput"),
       shortTapeBtn: document.getElementById("shortTapeBtn"),
       longTapeBtn: document.getElementById("longTapeBtn"),
+      fitTapeBtn: document.getElementById("fitTapeBtn"),
       scaleInput: document.getElementById("scaleInput"),
       scaleValue: document.getElementById("scaleValue"),
       offsetXInput: document.getElementById("offsetXInput"),
@@ -947,6 +961,13 @@
 
     function selectItem(id) {
       app.activeItemId = id;
+      const item = activeItem();
+      if (item && item.kind === "text" && item.text != null) {
+        populateTextPanel(item);
+        setMode("text");
+      } else if (item && item.kind === "image") {
+        setMode("image");
+      }
       syncActiveItem();
       renderObjectList();
       renderTapeToCanvas();
@@ -1185,9 +1206,11 @@
       }
 
       const topPad = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
-      if (app.previewMode === "layout" && topPad > 0) {
-        ctx.fillStyle = "rgba(231, 199, 111, .16)";
-        ctx.fillRect(0, 0, PRINT_WIDTH, topPad);
+      if (topPad > 0) {
+        if (app.previewMode === "layout") {
+          ctx.fillStyle = "rgba(231, 199, 111, .16)";
+          ctx.fillRect(0, 0, PRINT_WIDTH, topPad);
+        }
         ctx.setLineDash([5, 4]);
         ctx.strokeStyle = "rgba(150, 125, 60, .8)";
         ctx.beginPath();
@@ -1254,15 +1277,6 @@
       const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
       value = factor * (value - 128) + 128;
       return clamp(Math.round(value), 0, 255);
-    }
-
-    function luminanceFromImageData(imageData) {
-      const { data } = imageData;
-      const values = new Uint8Array((data.length / 4) | 0);
-      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
-        values[p] = adjustedLuminance(data[i], data[i + 1], data[i + 2]);
-      }
-      return values;
     }
 
     function applyThreshold(values, threshold) {
@@ -1698,19 +1712,28 @@
         patch.height = bh;
         const pctx = patch.getContext("2d", { willReadFrequently: true });
         pctx.imageSmoothingEnabled = true;
-        pctx.fillStyle = "#fff";
-        pctx.fillRect(0, 0, bw, bh);
         pctx.translate(cx - minX, cy - minY);
         pctx.rotate(rad);
         pctx.drawImage(item.canvas, -drawW / 2, -drawH / 2, drawW, drawH);
 
-        const values = luminanceFromImageData(pctx.getImageData(0, 0, bw, bh));
+        const data = pctx.getImageData(0, 0, bw, bh).data;
+        const values = new Uint8Array(bw * bh);
+        const covered = new Uint8Array(bw * bh);
+        for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+          if (data[i + 3] < 128) {
+            values[p] = 255;
+            continue;
+          }
+          covered[p] = 1;
+          values[p] = adjustedLuminance(data[i], data[i + 1], data[i + 2]);
+        }
         const { mode, threshold } = resolveDither(item);
         const itemBits = ditherBits(values, bw, bh, mode, threshold);
         for (let y = 0; y < bh; y += 1) {
           const rowBase = (minY + y) * w + minX;
           for (let x = 0; x < bw; x += 1) {
-            if (itemBits[y * bw + x]) bits[rowBase + x] = 1;
+            const p = y * bw + x;
+            if (covered[p]) bits[rowBase + x] = itemBits[p];
           }
         }
       }
@@ -1769,25 +1792,50 @@
       }
     }
 
-    function renderTextSource() {
-      const text = els.textInput.value.trim();
-      if (!text) {
-        log("Введите текст.");
-        return;
-      }
+    const MONO_STACK = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    const SANS_STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+    const SERIF_STACK = 'Georgia, "Times New Roman", serif';
+    const FONT_STACKS = {
+      "mono": MONO_STACK,
+      "bold-mono": MONO_STACK,
+      "sans": SANS_STACK,
+      "bold-sans": SANS_STACK,
+      "serif": SERIF_STACK,
+    };
 
-      const fontSize = clamp(Number(els.fontSizeInput.value) || 28, 12, 72);
-      const padding = clamp(Number(els.textPaddingInput.value) || 18, 0, 80);
+    function textFontSpec(params) {
+      const stack = FONT_STACKS[params.font] || MONO_STACK;
+      const weight = params.font.startsWith("bold") ? "bold " : "";
+      return `${weight}${params.fontSize}px ${stack}`;
+    }
+
+    function textParamsFromInputs() {
+      return {
+        text: els.textInput.value.replace(/\s+$/, ""),
+        font: els.fontSelect.value,
+        fontSize: clamp(Number(els.fontSizeInput.value) || 28, 12, 72),
+        padding: clamp(Number(els.textPaddingInput.value) || 0, 0, 80),
+      };
+    }
+
+    function textName(text) {
+      const firstLine = text.split("\n")[0].trim();
+      if (!firstLine) return "Текст";
+      return firstLine.length > 18 ? `${firstLine.slice(0, 18)}…` : firstLine;
+    }
+
+    function buildTextCanvas(params) {
+      const font = textFontSpec(params);
       const probe = document.createElement("canvas");
       probe.width = PRINT_WIDTH;
       probe.height = 20;
       const pctx = probe.getContext("2d", { willReadFrequently: true });
-      pctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-      const lineHeight = Math.ceil(fontSize * 1.28);
-      const maxWidth = PRINT_WIDTH - padding * 2;
+      pctx.font = font;
+      const lineHeight = Math.ceil(params.fontSize * 1.28);
+      const maxWidth = PRINT_WIDTH - params.padding * 2;
       const lines = [];
 
-      for (const paragraph of text.split("\n")) {
+      for (const paragraph of params.text.split("\n")) {
         if (!paragraph) {
           lines.push("");
           continue;
@@ -1808,24 +1856,58 @@
 
       const canvas = document.createElement("canvas");
       canvas.width = PRINT_WIDTH;
-      canvas.height = Math.max(1, padding * 2 + lines.length * lineHeight);
+      canvas.height = Math.max(1, params.padding * 2 + lines.length * lineHeight);
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#000";
       ctx.textBaseline = "top";
-      ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.font = font;
       lines.forEach((line, index) => {
-        ctx.fillText(line, padding, padding + index * lineHeight);
+        ctx.fillText(line, params.padding, params.padding + index * lineHeight);
       });
+      return canvas;
+    }
 
-      const item = addItem(canvas, "Текст", "text");
+    function renderTextSource() {
+      const params = textParamsFromInputs();
+      if (!params.text.trim()) {
+        log("Введите текст.");
+        return;
+      }
+
+      const canvas = buildTextCanvas(params);
+      const item = addItem(canvas, textName(params.text), "text");
+      Object.assign(item, params);
       item.scale = 1;
       item.x = 0;
       item.y = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
       syncActiveItem();
+      renderObjectList();
       renderTapeToCanvas();
       log(`Текст подготовлен: ${canvas.width}x${canvas.height}`);
+    }
+
+    function refreshActiveText() {
+      const item = activeItem();
+      if (!item || item.kind !== "text" || item.text == null) return;
+      const params = textParamsFromInputs();
+      if (!params.text.trim()) return;
+      Object.assign(item, params);
+      item.canvas = buildTextCanvas(params);
+      item.name = textName(params.text);
+      item.analysis = null;
+      syncActiveItem();
+      renderObjectList();
+      scheduleRender();
+    }
+
+    function populateTextPanel(item) {
+      if (!item || item.kind !== "text" || item.text == null) return;
+      els.textInput.value = item.text;
+      els.fontSelect.value = item.font;
+      els.fontSizeInput.value = String(item.fontSize);
+      els.textPaddingInput.value = String(item.padding);
     }
 
     function fitWidth() {
@@ -2241,6 +2323,7 @@
       if (picked && picked.id !== app.activeItemId) {
         app.activeItemId = picked.id;
         syncActiveItem();
+        populateTextPanel(picked);
         renderObjectList();
       }
       const item = activeItem();
@@ -2364,6 +2447,10 @@
       if (files.length) await loadImagesFromFileList(files);
     });
     els.renderTextBtn.addEventListener("click", renderTextSource);
+    els.textInput.addEventListener("input", refreshActiveText);
+    els.fontSelect.addEventListener("change", refreshActiveText);
+    els.fontSizeInput.addEventListener("input", refreshActiveText);
+    els.textPaddingInput.addEventListener("input", refreshActiveText);
     els.fitWidthBtn.addEventListener("click", fitWidth);
     els.fitHeightBtn.addEventListener("click", fitHeight);
     els.centerBtn.addEventListener("click", centerContent);
@@ -2390,6 +2477,21 @@
       app.paperHeight = 1800;
       els.paperHeightInput.value = "1800";
       renderTapeToCanvas();
+    });
+    els.fitTapeBtn.addEventListener("click", () => {
+      if (!app.items.length) return;
+      let bottom = 0;
+      for (const item of app.items) {
+        const drawW = item.canvas.width * item.scale;
+        const drawH = item.canvas.height * item.scale;
+        const rad = item.rotation * Math.PI / 180;
+        const boundH = drawW * Math.abs(Math.sin(rad)) + drawH * Math.abs(Math.cos(rad));
+        bottom = Math.max(bottom, item.y + drawH / 2 + boundH / 2);
+      }
+      app.paperHeight = clamp(Math.ceil(bottom) + 8, 120, 6000);
+      els.paperHeightInput.value = String(app.paperHeight);
+      renderTapeToCanvas();
+      log(`Лента подогнана: ${app.paperHeight} px`);
     });
     els.scaleInput.addEventListener("input", () => {
       app.image.scale = Number(els.scaleInput.value) / 100;
