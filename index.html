@@ -596,21 +596,8 @@
               <span class="range-value" id="paperHeightValue">560</span>
             </div>
           </label>
-          <div class="field-row">
-            <label title="Сюда ставятся новые объекты и раскладка «В колонку» — пунктирная линия на предпросмотре">
-              Верхний отступ
-              <input id="topPadInput" type="number" min="0" max="300" step="1" value="16" />
-            </label>
-            <label>
-              Нижняя подача
-              <input id="feedInput" type="number" min="0" max="255" step="1" value="25" />
-            </label>
-          </div>
-          <div class="button-grid">
-            <button id="shortTapeBtn" type="button">Короткая</button>
-            <button id="longTapeBtn" type="button">Длинная</button>
-            <button id="fitTapeBtn" type="button">По содержимому</button>
-          </div>
+          <button id="fitTapeBtn" type="button">По содержимому</button>
+          <div class="hint">Лента сама подгоняется под контент. Ползунок — если нужно добавить пустого места вручную.</div>
         </section>
 
         <section class="section">
@@ -766,6 +753,7 @@
     ];
     const WRITE_UUID = 0xae01;
     const NOTIFY_UUID = 0xae02;
+    const TEAR_OFF_FEED = 40;
     const BATTERY_SERVICE = 0x180f;
     const BATTERY_CHAR = 0x2a19;
     const READY_NOTIFICATION = new Uint8Array([0x51, 0x78, 0xae, 0x01, 0x01, 0x00, 0x00, 0x00, 0xff]);
@@ -800,10 +788,6 @@
       renderTextBtn: document.getElementById("renderTextBtn"),
       paperHeightInput: document.getElementById("paperHeightInput"),
       paperHeightValue: document.getElementById("paperHeightValue"),
-      topPadInput: document.getElementById("topPadInput"),
-      feedInput: document.getElementById("feedInput"),
-      shortTapeBtn: document.getElementById("shortTapeBtn"),
-      longTapeBtn: document.getElementById("longTapeBtn"),
       fitTapeBtn: document.getElementById("fitTapeBtn"),
       scaleInput: document.getElementById("scaleInput"),
       scaleValue: document.getElementById("scaleValue"),
@@ -941,7 +925,7 @@
       app.image = item || {
         scale: 1,
         x: 0,
-        y: clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight),
+        y: 0,
         rotation: 0,
       };
     }
@@ -966,12 +950,28 @@
     }
 
     function nextInsertY() {
-      const top = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
-      if (!app.items.length) return top;
-      const bottom = app.items.reduce((max, item) => {
+      if (!app.items.length) return 0;
+      return app.items.reduce((max, item) => {
         return Math.max(max, item.y + item.canvas.height * item.scale);
-      }, top);
-      return Math.min(app.paperHeight - 20, bottom + 18);
+      }, 0) + 18;
+    }
+
+    function contentBottom() {
+      let bottom = 0;
+      for (const item of app.items) {
+        const drawW = item.canvas.width * item.scale;
+        const drawH = item.canvas.height * item.scale;
+        const rad = item.rotation * Math.PI / 180;
+        const boundH = drawW * Math.abs(Math.sin(rad)) + drawH * Math.abs(Math.cos(rad));
+        bottom = Math.max(bottom, item.y + drawH / 2 + boundH / 2);
+      }
+      return bottom;
+    }
+
+    function fitTapeToContent() {
+      if (!app.items.length) return;
+      app.paperHeight = clamp(Math.ceil(contentBottom()) + 8, 120, 6000);
+      els.paperHeightInput.value = String(app.paperHeight);
     }
 
     function selectItem(id) {
@@ -1064,7 +1064,7 @@
     }
 
     function stackItems() {
-      let y = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
+      let y = 0;
       for (const item of app.items) {
         item.scale = Math.min(1, PRINT_WIDTH / item.canvas.width);
         item.x = (PRINT_WIDTH - item.canvas.width * item.scale) / 2;
@@ -1072,11 +1072,7 @@
         item.rotation = 0;
         y += item.canvas.height * item.scale + 18;
       }
-      const neededHeight = Math.ceil(y + 20);
-      if (neededHeight > app.paperHeight) {
-        app.paperHeight = Math.min(6000, neededHeight);
-        els.paperHeightInput.value = String(app.paperHeight);
-      }
+      fitTapeToContent();
       syncActiveItem();
       renderObjectList();
       renderTapeToCanvas();
@@ -1094,9 +1090,7 @@
       els.scaleInput.value = String(Math.round(app.image.scale * 100));
       els.offsetXInput.value = String(Math.round(app.image.x));
       els.offsetYInput.value = String(Math.round(app.image.y));
-      const feed = feedPx();
-      const feedInfo = feed > 0 ? ` + ${Math.round(feed / 8)} мм подача` : "";
-      els.bitmapInfo.textContent = `${PRINT_WIDTH} x ${app.paperHeight} px ≈ ${Math.round(app.paperHeight / 8)} мм${feedInfo}`;
+      els.bitmapInfo.textContent = `${PRINT_WIDTH} x ${app.paperHeight} px ≈ ${Math.round(app.paperHeight / 8)} мм`;
       const item = activeItem();
       els.itemDitherSelect.value = item ? (item.dither || "") : "";
       const count = app.items.length;
@@ -1193,53 +1187,10 @@
       }
     }
 
-    function feedPx() {
-      return clamp(Number(els.feedInput.value) || 0, 0, 255);
-    }
-
-    function drawMarginOverlays(ctx) {
-      const feed = feedPx();
-      if (feed > 0) {
-        const fy = app.paperHeight;
-        ctx.fillStyle = "#e9e2cf";
-        ctx.fillRect(0, fy, PRINT_WIDTH, feed);
-        ctx.strokeStyle = "rgba(0,0,0,.15)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let x = -feed; x < PRINT_WIDTH; x += 12) {
-          ctx.moveTo(x, fy);
-          ctx.lineTo(x + feed, fy + feed);
-        }
-        ctx.stroke();
-        ctx.setLineDash([5, 4]);
-        ctx.strokeStyle = "rgba(0,0,0,.35)";
-        ctx.beginPath();
-        ctx.moveTo(0, fy + 0.5);
-        ctx.lineTo(PRINT_WIDTH, fy + 0.5);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      const topPad = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
-      if (topPad > 0) {
-        if (app.previewMode === "layout") {
-          ctx.fillStyle = "rgba(231, 199, 111, .16)";
-          ctx.fillRect(0, 0, PRINT_WIDTH, topPad);
-        }
-        ctx.setLineDash([5, 4]);
-        ctx.strokeStyle = "rgba(150, 125, 60, .8)";
-        ctx.beginPath();
-        ctx.moveTo(0, topPad + 0.5);
-        ctx.lineTo(PRINT_WIDTH, topPad + 0.5);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-
     function renderTapeToCanvas() {
       const canvas = els.preview;
       canvas.width = PRINT_WIDTH;
-      canvas.height = app.paperHeight + feedPx();
+      canvas.height = app.paperHeight;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       drawLayout(ctx, canvas);
 
@@ -1249,7 +1200,6 @@
       } else {
         currentBitmap = null;
       }
-      drawMarginOverlays(ctx);
       updateNumbers();
       updateUi();
     }
@@ -1781,6 +1731,7 @@
         const item = addItem(canvas, file.name, "image");
         item.scale = Math.min(1, PRINT_WIDTH / canvas.width);
         item.x = (PRINT_WIDTH - canvas.width * item.scale) / 2;
+        fitTapeToContent();
         syncActiveItem();
         renderObjectList();
         renderTapeToCanvas();
@@ -1896,7 +1847,6 @@
       Object.assign(item, params);
       item.scale = 1;
       item.x = 0;
-      item.y = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
       syncActiveItem();
       renderObjectList();
       renderTapeToCanvas();
@@ -1930,12 +1880,7 @@
       app.image.rotation = 0;
       app.image.scale = PRINT_WIDTH / app.sourceCanvas.width;
       app.image.x = 0;
-      app.image.y = clamp(Number(els.topPadInput.value) || 0, 0, app.paperHeight);
-      const neededHeight = Math.ceil(app.image.y + app.sourceCanvas.height * app.image.scale + 20);
-      if (neededHeight > app.paperHeight) {
-        app.paperHeight = Math.min(6000, neededHeight);
-        els.paperHeightInput.value = String(app.paperHeight);
-      }
+      fitTapeToContent();
       renderTapeToCanvas();
     }
 
@@ -2207,9 +2152,8 @@
         }
       }
 
-      const feed = clamp(Number(els.feedInput.value) || 25, 0, 255);
       const endPackets = [
-        cmdFeedPaper(feed),
+        cmdFeedPaper(TEAR_OFF_FEED),
         cmdSetPaper(),
         cmdSetPaper(),
         cmdSetPaper(),
@@ -2495,28 +2439,9 @@
       els.offsetYInput.max = String(app.paperHeight);
       scheduleRender();
     });
-    els.shortTapeBtn.addEventListener("click", () => {
-      app.paperHeight = 360;
-      els.paperHeightInput.value = "360";
-      renderTapeToCanvas();
-    });
-    els.longTapeBtn.addEventListener("click", () => {
-      app.paperHeight = 1800;
-      els.paperHeightInput.value = "1800";
-      renderTapeToCanvas();
-    });
     els.fitTapeBtn.addEventListener("click", () => {
       if (!app.items.length) return;
-      let bottom = 0;
-      for (const item of app.items) {
-        const drawW = item.canvas.width * item.scale;
-        const drawH = item.canvas.height * item.scale;
-        const rad = item.rotation * Math.PI / 180;
-        const boundH = drawW * Math.abs(Math.sin(rad)) + drawH * Math.abs(Math.cos(rad));
-        bottom = Math.max(bottom, item.y + drawH / 2 + boundH / 2);
-      }
-      app.paperHeight = clamp(Math.ceil(bottom) + 8, 120, 6000);
-      els.paperHeightInput.value = String(app.paperHeight);
+      fitTapeToContent();
       renderTapeToCanvas();
       log(`Лента подогнана: ${app.paperHeight} px`);
     });
@@ -2561,8 +2486,6 @@
       log(`Порог по Оцу: ${threshold}`);
       renderTapeToCanvas();
     });
-    els.topPadInput.addEventListener("input", scheduleRender);
-    els.feedInput.addEventListener("input", scheduleRender);
     els.energyInput.addEventListener("input", updateNumbers);
 
     setStatus("Не подключен", "idle");
