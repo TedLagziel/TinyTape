@@ -732,8 +732,8 @@
           <label>
             Нагрев
             <div class="range-line">
-              <input id="energyInput" type="range" min="12000" max="65535" step="1" value="65535" />
-              <span class="range-value" id="energyValue">65535</span>
+              <input id="energyInput" type="range" min="12000" max="65535" step="1" value="40000" />
+              <span class="range-value" id="energyValue">40000</span>
             </div>
           </label>
           <label>
@@ -2185,7 +2185,7 @@
       const startPackets = [
         cmdGetState(),
         cmdSetQuality(),
-        cmdSetEnergy(clamp(Number(els.energyInput.value) || 65535, 12000, 0xffff)),
+        cmdSetEnergy(clamp(Number(els.energyInput.value) || 40000, 12000, 0xffff)),
         cmdApplyEnergy(),
         cmdLatticeStart(),
       ];
