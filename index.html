@@ -523,6 +523,11 @@
       gap: 6px;
     }
 
+    .field-stack {
+      display: grid;
+      gap: 12px;
+    }
+
     .hidden {
       display: none;
     }
@@ -732,14 +737,16 @@
               </optgroup>
             </select>
           </label>
-          <label>
-            Порог черного
-            <div class="range-line">
-              <input id="thresholdInput" type="range" min="0" max="255" value="160" />
-              <span class="range-value" id="thresholdValue">160</span>
-            </div>
-          </label>
-          <button id="otsuBtn" type="button">Порог по Оцу</button>
+          <div class="field-stack" id="thresholdGroup">
+            <label>
+              Порог черного
+              <div class="range-line">
+                <input id="thresholdInput" type="range" min="0" max="255" value="160" />
+                <span class="range-value" id="thresholdValue">160</span>
+              </div>
+            </label>
+            <button id="otsuBtn" type="button">Порог по Оцу</button>
+          </div>
           <label>
             Контраст
             <div class="range-line">
@@ -839,6 +846,7 @@
       contentInfo: document.getElementById("contentInfo"),
       ditherSelect: document.getElementById("ditherSelect"),
       otsuBtn: document.getElementById("otsuBtn"),
+      thresholdGroup: document.getElementById("thresholdGroup"),
       thresholdInput: document.getElementById("thresholdInput"),
       thresholdValue: document.getElementById("thresholdValue"),
       contrastInput: document.getElementById("contrastInput"),
@@ -1165,6 +1173,7 @@
       const widthPct = Math.round(app.image.scale * activeW / PRINT_WIDTH * 100);
       els.scaleValue.textContent = `${widthPct}%`;
       els.thresholdValue.textContent = els.thresholdInput.value;
+      els.thresholdGroup.classList.toggle("hidden", !thresholdMatters());
       els.contrastValue.textContent = els.contrastInput.value;
       els.brightnessValue.textContent = els.brightnessInput.value;
       const energyPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
@@ -1716,6 +1725,13 @@
       const setting = item.dither || els.ditherSelect.value;
       if (setting === "auto") return autoChoose(item);
       return { mode: setting, threshold: Number(els.thresholdInput.value) };
+    }
+
+    // Порог влияет только на «Порог» и «Авто»; диффузия/ordered/артовые его игнорируют.
+    const THRESHOLD_SENSITIVE = new Set(["threshold", "auto"]);
+    function thresholdMatters() {
+      if (THRESHOLD_SENSITIVE.has(els.ditherSelect.value)) return true;
+      return app.items.some((it) => it.dither && THRESHOLD_SENSITIVE.has(it.dither));
     }
 
     const DITHER_SHORT = {
