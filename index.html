@@ -2023,8 +2023,17 @@
         lines.push(line);
       }
 
+      // Рамка объекта равна фактической ширине текста, а не всей ленте —
+      // иначе прозрачная (без подложки) область перехватывает клики по
+      // тому, что лежит под ней.
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        maxLineWidth = Math.max(maxLineWidth, pctx.measureText(line).width);
+      }
+      const canvasWidth = Math.max(1, Math.ceil(Math.min(PRINT_WIDTH, maxLineWidth + params.padding * 2)));
+
       const canvas = document.createElement("canvas");
-      canvas.width = PRINT_WIDTH;
+      canvas.width = canvasWidth;
       canvas.height = Math.max(1, params.padding * 2 + lines.length * lineHeight);
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const inkColor = params.textColor === "white" ? "#fff" : "#000";
@@ -2055,6 +2064,7 @@
       Object.assign(item, params);
       item.scale = 1;
       item.x = 0;
+      fitTapeToContent();
       syncActiveItem();
       renderObjectList();
       renderTapeToCanvas();
