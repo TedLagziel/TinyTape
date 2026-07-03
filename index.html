@@ -747,6 +747,7 @@
               </div>
             </label>
             <button id="otsuBtn" type="button">Порог по Оцу</button>
+            <div class="hint">Метод Оцу: сам считает оптимальный порог по гистограмме — делит картинку на «светлое» и «тёмное» с максимальным контрастом.</div>
           </div>
           <label>
             Контраст
@@ -1787,11 +1788,15 @@
       return { mode: setting, threshold: Number(els.thresholdInput.value) };
     }
 
-    // Порог влияет только на «Порог» и «Авто»; диффузия/ordered/артовые его игнорируют.
-    const THRESHOLD_SENSITIVE = new Set(["threshold", "auto"]);
+    // Порог осмыслен только там, где объект ПО ФАКТУ растрируется порогом.
+    // «Авто» разрешается в конкретный алгоритм для каждого объекта, поэтому
+    // судим по разрешённому режиму, а не по слову «Авто» в селекте.
     function thresholdMatters() {
-      if (THRESHOLD_SENSITIVE.has(els.ditherSelect.value)) return true;
-      return app.items.some((it) => it.dither && THRESHOLD_SENSITIVE.has(it.dither));
+      if (!app.items.length) {
+        const g = els.ditherSelect.value;
+        return g === "threshold" || g === "auto";
+      }
+      return app.items.some((it) => resolveDither(it).mode === "threshold");
     }
 
     const DITHER_SHORT = {
