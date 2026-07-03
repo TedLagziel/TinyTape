@@ -1991,13 +1991,28 @@
       log(`Поворот: ${app.image.rotation}°`);
     }
 
-    function loadDemo() {
+    const MONO_FONT = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+
+    function currentParams() {
+      const alg = els.ditherSelect.selectedOptions[0].textContent.trim();
+      const heatPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      const mode = els.printSpeedSelect.selectedOptions[0].textContent.trim();
+      return {
+        alg,
+        threshold: els.thresholdInput.value,
+        contrast: els.contrastInput.value,
+        heatPct,
+        mode,
+      };
+    }
+
+    function buildTestCard() {
       const W = PRINT_WIDTH;
       const pad = 14;
       const inW = W - pad * 2;
       const temp = document.createElement("canvas");
       temp.width = W;
-      temp.height = 1600;
+      temp.height = 1700;
       const ctx = temp.getContext("2d", { willReadFrequently: true });
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, W, temp.height);
@@ -2015,9 +2030,18 @@
       ctx.fillStyle = "#000";
       ctx.font = "bold 28px ui-sans-serif, system-ui, sans-serif";
       ctx.fillText("TinyTape · тест", pad, y);
-      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+      ctx.font = `12px ${MONO_FONT}`;
       ctx.fillText(new Date().toLocaleString(), pad, y + 32);
       y += 56;
+
+      // Параметры печати (впечатываются, чтобы сравнивать отпечатки)
+      const p = currentParams();
+      heading("Параметры печати");
+      ctx.fillStyle = "#000";
+      ctx.font = `12px ${MONO_FONT}`;
+      ctx.fillText(`Растр: ${p.alg}`, pad, y); y += 16;
+      ctx.fillText(`Порог ${p.threshold}  ·  Контраст ${p.contrast}`, pad, y); y += 16;
+      ctx.fillText(`Нагрев ${p.heatPct}%  ·  ${p.mode}`, pad, y); y += 16 + 8;
 
       // Сплошная заливка + выворотка (плотность чёрного)
       heading("Заливка и выворотка");
@@ -2108,13 +2132,25 @@
       canvas.width = W;
       canvas.height = y;
       canvas.getContext("2d", { willReadFrequently: true }).drawImage(temp, 0, 0);
+      return canvas;
+    }
 
+    function loadDemo() {
       app.items = [];
       app.activeItemId = null;
       app.settingsOpenId = null;
-      addItem(canvas, "Тест печати", "image");
+      const item = addItem(buildTestCard(), "Тест печати", "image");
+      item.testCard = true;
       fitWidth();
       log("Тест-карта подготовлена.");
+    }
+
+    function refreshTestCard() {
+      const item = app.items.find((it) => it.testCard);
+      if (!item) return false;
+      item.canvas = buildTestCard();
+      item.analysis = null;
+      return true;
     }
 
     function updateUi() {
@@ -2616,11 +2652,21 @@
       syncActiveItem();
       scheduleRender();
     });
-    els.thresholdInput.addEventListener("input", scheduleRender);
-    els.contrastInput.addEventListener("input", scheduleRender);
+    els.thresholdInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
+    els.contrastInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
     els.ditherSelect.addEventListener("change", () => {
+      refreshTestCard();
       renderObjectList();
       renderTapeToCanvas();
+    });
+    els.printSpeedSelect.addEventListener("change", () => {
+      if (refreshTestCard()) scheduleRender();
     });
     els.otsuBtn.addEventListener("click", () => {
       const canvas = document.createElement("canvas");
@@ -2636,9 +2682,13 @@
       const { threshold } = otsuFromHist(hist, data.length / 4);
       els.thresholdInput.value = String(threshold);
       log(`Порог по Оцу: ${threshold}`);
+      refreshTestCard();
       renderTapeToCanvas();
     });
-    els.energyInput.addEventListener("input", updateNumbers);
+    els.energyInput.addEventListener("input", () => {
+      updateNumbers();
+      if (refreshTestCard()) scheduleRender();
+    });
 
     setStatus("Не подключен", "idle");
     renderTapeToCanvas();
