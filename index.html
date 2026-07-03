@@ -2032,9 +2032,27 @@
       }
       const canvasWidth = Math.max(1, Math.ceil(Math.min(PRINT_WIDTH, maxLineWidth + params.padding * 2)));
 
+      // Строчная "коробка" шрифта закладывает место под нижние выносные
+      // элементы (у, р, д), даже если в тексте их нет — из-за этого
+      // нижний отступ визуально крупнее верхнего. Меряем фактические
+      // границы чернил первой и последней строки и обрезаем по ним,
+      // чтобы отступ был одинаковым со всех сторон.
+      const firstInk = lines.find((line) => line.trim()) || lines[0] || "";
+      const lastInk = [...lines].reverse().find((line) => line.trim()) || lines[lines.length - 1] || "";
+      const firstMetrics = pctx.measureText(firstInk);
+      const lastMetrics = pctx.measureText(lastInk);
+      const ascent = Number.isFinite(firstMetrics.actualBoundingBoxAscent)
+        ? firstMetrics.actualBoundingBoxAscent
+        : params.fontSize * 0.8;
+      const descent = Number.isFinite(lastMetrics.actualBoundingBoxDescent)
+        ? lastMetrics.actualBoundingBoxDescent
+        : params.fontSize * 0.2;
+      const inkHeight = ascent + (lines.length - 1) * lineHeight + descent;
+      const canvasHeight = Math.max(1, Math.round(inkHeight) + params.padding * 2);
+
       const canvas = document.createElement("canvas");
       canvas.width = canvasWidth;
-      canvas.height = Math.max(1, params.padding * 2 + lines.length * lineHeight);
+      canvas.height = canvasHeight;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const inkColor = params.textColor === "white" ? "#fff" : "#000";
       if (params.plate) {
@@ -2044,10 +2062,11 @@
       }
       // Без подложки холст остаётся прозрачным — сквозь него видно картинку под текстом.
       ctx.fillStyle = inkColor;
-      ctx.textBaseline = "top";
+      ctx.textBaseline = "alphabetic";
       ctx.font = font;
+      const baselineY = params.padding + ascent;
       lines.forEach((line, index) => {
-        ctx.fillText(line, params.padding, params.padding + index * lineHeight);
+        ctx.fillText(line, params.padding, baselineY + index * lineHeight);
       });
       return canvas;
     }
