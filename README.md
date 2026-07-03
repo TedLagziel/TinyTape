@@ -8,14 +8,18 @@ The app runs as a static web page. It prepares images/text for a narrow thermal 
 
 - Print from desktop Chrome without a vendor mobile app.
 - Add one or many images to a long tape layout.
-- Drag images on the tape and adjust scale/position with sliders.
-- Add text blocks and edit them in place: content, font, size, and padding of a selected block.
+- Drag objects on the tape; scale with a slider or Ctrl+wheel/pinch, rotate 90°, align left/center/right, reorder or delete from the object list.
+- Add text blocks and edit them in place: content, font (5 options), size, and padding of a selected block.
 - Tape length tracks the content automatically; "По содержимому" re-fits it, or the slider adds blank space manually.
-- Preview both the editable layout and the final raster that will be sent to the printer.
-- Tune dithering, threshold, contrast, heat level, and BLE sending speed.
+- Three preview modes: `Макет` (editable layout), `Растр` (exact 1-bit dots that get sent to the printer), and `Печать` (default) — a dot-gain simulation of what the physical print will actually look like, which darkens with the heat setting.
+- 14 dithering algorithms grouped into functional (threshold, Floyd–Steinberg + serpentine variant, Atkinson, Jarvis-Judice-Ninke, Stucki, Bayer 4x4/8x8, clustered-dot, blue noise) and artistic (line screen, crosshatch, concentric rings, Riemersma/Hilbert-curve). An "Авто" mode picks a dithering algorithm per object based on image statistics (Otsu separability, midtone share, mean gradient). Each object can override the global algorithm from a gear icon in the object list.
+- Black threshold and an Otsu auto-threshold button — shown only in modes where the threshold actually affects the output (it's a no-op for error-diffusion/ordered dithers).
+- Brightness/shadow-compensation slider that lifts mid and dark tones before dithering, independent of contrast.
+- Built-in printer calibration test card (`Загрузить демо`) with solid fill/knockout, a grayscale step wedge, a smooth gradient, 1px hairlines, 1-4px checkerboards, geometry, and a small-text ladder. The current raster/threshold/contrast/brightness/heat/print-mode settings are imprinted into the card so printed samples are self-documenting.
+- Tune dithering, threshold, contrast, brightness, heat level, and BLE sending speed.
 - Reconnect to the last permitted printer when the browser allows it.
-- Filtered Bluetooth picker: only printers show up, not every BLE device nearby.
-- Automatic reconnect when the BLE connection drops.
+- Filtered Bluetooth picker: only printers show up, not every BLE device nearby, with a "show all devices" fallback if the picker comes up empty.
+- Automatic reconnect (up to 5 attempts) when the BLE connection drops.
 - Battery level in the status bar when the printer exposes the standard battery service.
 
 ## Compatibility
@@ -97,7 +101,7 @@ This project does not need a build step.
 4. Press `Подключить`.
 5. Select the printer in the Bluetooth dialog.
 6. Add images or text to the tape.
-7. Use `Растр` preview to check what will actually print.
+7. Use `Печать` preview (default) to see an approximation of the physical print, or `Растр` for the exact bits that get sent.
 8. Press `Печатать`.
 
 For short prints, keep `Режим печати` set to `Быстрый`. If a long print stops after several centimeters, switch to `Надёжный` or `Медленный`.
