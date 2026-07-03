@@ -288,6 +288,17 @@
       color: #ffedb2;
     }
 
+    .accent {
+      background: transparent;
+      border-color: #75612e;
+      color: var(--accent);
+    }
+
+    .accent:hover:not(:disabled) {
+      border-color: #8a743b;
+      background: #221d10;
+    }
+
     .ghost {
       background: transparent;
     }
@@ -317,13 +328,45 @@
 
     .object-item {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
-      align-items: center;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel-2);
       padding: 8px;
+    }
+
+    .object-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .object-info {
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 2px;
+      min-height: 0;
+    }
+
+    .object-info:hover:not(:disabled) {
+      background: transparent;
+      border: 0;
+    }
+
+    .object-settings {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .object-settings label {
+      font-size: 11px;
+    }
+
+    .object-actions button.gear-active {
+      border-color: #8a743b;
+      color: var(--accent);
     }
 
     .object-item.active {
@@ -388,12 +431,12 @@
     }
 
     .ruler {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
+      display: flex;
+      justify-content: space-between;
       color: #7d786d;
       font-size: 11px;
       font-variant-numeric: tabular-nums;
-      padding: 0 10px;
+      padding: 10px 12px 0;
     }
 
     .canvas-shell {
@@ -460,6 +503,26 @@
       line-height: 1.45;
     }
 
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .log-clear {
+      min-height: 28px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .seg3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
     .hidden {
       display: none;
     }
@@ -511,7 +574,7 @@
         <div class="mark" aria-hidden="true">TT</div>
         <div>
           <h1>TinyTape</h1>
-          <div class="sub">384 px лента, BLE-печать с Mac</div>
+          <div class="sub">Лента 384 px · печать по Bluetooth</div>
         </div>
       </div>
       <div class="top-actions">
@@ -519,7 +582,7 @@
           <span class="dot" id="statusDot"></span>
           <span id="statusText">Не подключен</span>
         </div>
-        <button class="primary" id="connectBtn">Подключить</button>
+        <button class="accent" id="connectBtn">Подключить</button>
         <button id="disconnectBtn" disabled>Отключить</button>
         <button class="primary" id="printBtn" disabled>Печатать</button>
       </div>
@@ -539,12 +602,6 @@
               Файл
               <input id="fileInput" type="file" accept="image/*" multiple />
             </label>
-            <div class="button-grid">
-              <button id="fitWidthBtn" type="button">По ширине</button>
-              <button id="fitHeightBtn" type="button">По высоте</button>
-              <button id="centerBtn" type="button">В центр</button>
-              <button id="rotateBtn" type="button">Повернуть 90</button>
-            </div>
           </div>
 
           <div class="mode-panel" id="textPanel">
@@ -575,6 +632,8 @@
             <button id="renderTextBtn" type="button">Добавить текст</button>
             <div class="hint">Выбранный текстовый блок редактируется этими полями наживую.</div>
           </div>
+
+          <button id="demoBtn" class="ghost" type="button">Загрузить демо</button>
         </section>
 
         <section class="section">
@@ -585,6 +644,30 @@
             <button id="clearObjectsBtn" type="button">Очистить</button>
           </div>
           <div class="hint">Можно загрузить сразу несколько файлов или бросить пачку картинок на ленту.</div>
+        </section>
+
+        <section class="section hidden" id="objectPanel">
+          <h2 class="section-title">Объект</h2>
+          <div class="button-grid">
+            <button id="fitWidthBtn" type="button">По ширине</button>
+            <button id="rotateBtn" type="button">Поворот 90°</button>
+          </div>
+          <label>
+            Масштаб
+            <div class="range-line">
+              <input id="scaleInput" type="range" min="10" max="300" step="1" value="100" />
+              <span class="range-value" id="scaleValue">100%</span>
+            </div>
+          </label>
+          <label>
+            Выравнивание
+            <div class="seg3">
+              <button id="alignLeftBtn" type="button">Слева</button>
+              <button id="alignCenterBtn" type="button">Центр</button>
+              <button id="alignRightBtn" type="button">Справа</button>
+            </div>
+          </label>
+          <div class="hint">Двигать и масштабировать объект можно прямо на предпросмотре (щипок или Ctrl+колесо). Настройки растра — под шестерёнкой в списке. Delete — удалить.</div>
         </section>
 
         <section class="section">
@@ -599,69 +682,17 @@
           <button id="fitTapeBtn" type="button">По содержимому</button>
           <div class="hint">Лента сама подгоняется под контент. Ползунок — если нужно добавить пустого места вручную.</div>
         </section>
-
-        <section class="section">
-          <h2 class="section-title">Картинка на ленте</h2>
-          <label>
-            Масштаб
-            <div class="range-line">
-              <input id="scaleInput" type="range" min="10" max="300" step="1" value="100" />
-              <span class="range-value" id="scaleValue">100%</span>
-            </div>
-          </label>
-          <label>
-            По горизонтали
-            <div class="range-line">
-              <input id="offsetXInput" type="range" min="-384" max="384" step="1" value="0" />
-              <span class="range-value" id="offsetXValue">0</span>
-            </div>
-          </label>
-          <label>
-            По вертикали
-            <div class="range-line">
-              <input id="offsetYInput" type="range" min="-6000" max="6000" step="1" value="0" />
-              <span class="range-value" id="offsetYValue">0</span>
-            </div>
-          </label>
-          <label>
-            Растр объекта
-            <select id="itemDitherSelect">
-              <option value="">Как в настройках печати</option>
-              <option value="auto">Авто (по содержимому)</option>
-              <optgroup label="Функциональные">
-                <option value="threshold">Порог</option>
-                <option value="floyd-steinberg">Floyd–Steinberg</option>
-                <option value="fs-serpentine">Floyd–Steinberg (серпантин)</option>
-                <option value="atkinson">Atkinson</option>
-                <option value="jjn">Jarvis–Judice–Ninke</option>
-                <option value="stucki">Stucki</option>
-                <option value="bayer4">Bayer 4×4</option>
-                <option value="bayer8">Bayer 8×8</option>
-                <option value="cluster">Кластерный (газетный)</option>
-                <option value="bluenoise">Blue noise</option>
-              </optgroup>
-              <optgroup label="Артовые">
-                <option value="lines">Линейный растр</option>
-                <option value="crosshatch">Штриховка</option>
-                <option value="rings">Концентрические кольца</option>
-                <option value="riemersma">Riemersma (зерно)</option>
-              </optgroup>
-            </select>
-          </label>
-          <div class="hint">Картинку можно двигать прямо на предпросмотре. Масштаб — ползунком или щипком на трекпаде (Ctrl+колесо). Delete удаляет выбранный объект.</div>
-        </section>
       </aside>
 
       <section class="stage" aria-label="Предпросмотр">
         <div class="tape-frame">
-          <div class="ruler">
-            <span>0</span><span>48</span><span>96</span><span>144</span>
-            <span>192</span><span>240</span><span>288</span><span>336</span>
-          </div>
           <div class="canvas-shell" id="canvasShell">
             <div class="view-toggle" aria-label="Режим предпросмотра">
               <button class="view-btn" id="layoutViewBtn" type="button">Макет</button>
               <button class="view-btn active" id="rasterViewBtn" type="button">Растр</button>
+            </div>
+            <div class="ruler" aria-hidden="true">
+              <span>0</span><span>96</span><span>192</span><span>288</span><span>384</span>
             </div>
             <div class="canvas-scroll" id="canvasScroll">
               <canvas id="preview" width="384" height="560"></canvas>
@@ -669,7 +700,7 @@
           </div>
           <div class="tape-meta">
             <span id="bitmapInfo">384 x 560 px</span>
-            <span id="contentInfo">Нет картинки</span>
+            <span id="contentInfo">Нет содержимого</span>
           </div>
         </div>
       </section>
@@ -731,14 +762,13 @@
               <option value="slow">Медленный</option>
             </select>
           </label>
-          <div class="button-row">
-            <button id="demoBtn" type="button">Демо</button>
-            <button id="clearBtn" class="danger" type="button">Очистить лог</button>
-          </div>
         </section>
 
         <section class="section">
-          <h2 class="section-title">Журнал</h2>
+          <div class="section-head">
+            <h2 class="section-title">Журнал</h2>
+            <button id="clearBtn" class="ghost log-clear" type="button">Очистить</button>
+          </div>
           <pre class="log" id="log"></pre>
         </section>
       </aside>
@@ -775,9 +805,11 @@
       textPanel: document.getElementById("textPanel"),
       fileInput: document.getElementById("fileInput"),
       fitWidthBtn: document.getElementById("fitWidthBtn"),
-      fitHeightBtn: document.getElementById("fitHeightBtn"),
-      centerBtn: document.getElementById("centerBtn"),
       rotateBtn: document.getElementById("rotateBtn"),
+      alignLeftBtn: document.getElementById("alignLeftBtn"),
+      alignCenterBtn: document.getElementById("alignCenterBtn"),
+      alignRightBtn: document.getElementById("alignRightBtn"),
+      objectPanel: document.getElementById("objectPanel"),
       objectList: document.getElementById("objectList"),
       stackBtn: document.getElementById("stackBtn"),
       clearObjectsBtn: document.getElementById("clearObjectsBtn"),
@@ -791,10 +823,6 @@
       fitTapeBtn: document.getElementById("fitTapeBtn"),
       scaleInput: document.getElementById("scaleInput"),
       scaleValue: document.getElementById("scaleValue"),
-      offsetXInput: document.getElementById("offsetXInput"),
-      offsetXValue: document.getElementById("offsetXValue"),
-      offsetYInput: document.getElementById("offsetYInput"),
-      offsetYValue: document.getElementById("offsetYValue"),
       layoutViewBtn: document.getElementById("layoutViewBtn"),
       rasterViewBtn: document.getElementById("rasterViewBtn"),
       canvasShell: document.getElementById("canvasShell"),
@@ -803,7 +831,6 @@
       bitmapInfo: document.getElementById("bitmapInfo"),
       contentInfo: document.getElementById("contentInfo"),
       ditherSelect: document.getElementById("ditherSelect"),
-      itemDitherSelect: document.getElementById("itemDitherSelect"),
       otsuBtn: document.getElementById("otsuBtn"),
       thresholdInput: document.getElementById("thresholdInput"),
       thresholdValue: document.getElementById("thresholdValue"),
@@ -822,6 +849,7 @@
       paperHeight: Number(els.paperHeightInput.value),
       items: [],
       activeItemId: null,
+      settingsOpenId: null,
       nextItemId: 1,
       sourceCanvas: null,
       sourceName: "",
@@ -999,13 +1027,16 @@
         const row = document.createElement("div");
         row.className = `object-item${item.id === app.activeItemId ? " active" : ""}`;
 
+        const top = document.createElement("div");
+        top.className = "object-row";
+
         const info = document.createElement("button");
-        info.className = "ghost";
+        info.className = "object-info";
         info.type = "button";
         info.title = "Выбрать объект";
         info.innerHTML = `<div class="object-name"></div><div class="object-meta"></div>`;
         info.querySelector(".object-name").textContent = item.name;
-        info.querySelector(".object-meta").textContent = `${item.canvas.width}x${item.canvas.height} · ${Math.round(item.scale * 100)}% · ${ditherLabel(item)}`;
+        info.querySelector(".object-meta").textContent = `${item.canvas.width}x${item.canvas.height} · ${Math.round(item.scale * item.canvas.width / PRINT_WIDTH * 100)}% · ${ditherLabel(item)}`;
         info.addEventListener("click", () => selectItem(item.id));
 
         const actions = document.createElement("div");
@@ -1020,16 +1051,54 @@
         down.textContent = "↓";
         down.title = "Ниже";
         down.addEventListener("click", () => moveItem(item.id, 1));
+        const gear = document.createElement("button");
+        gear.type = "button";
+        gear.textContent = "⚙";
+        gear.title = "Растр объекта";
+        if (item.id === app.settingsOpenId) gear.classList.add("gear-active");
+        gear.addEventListener("click", () => toggleSettings(item.id));
         const del = document.createElement("button");
         del.type = "button";
         del.textContent = "×";
         del.title = "Удалить";
         del.addEventListener("click", () => removeItem(item.id));
-        actions.append(up, down, del);
+        actions.append(up, down, gear, del);
 
-        row.append(info, actions);
+        top.append(info, actions);
+        row.append(top);
+
+        if (item.id === app.settingsOpenId) {
+          const settings = document.createElement("div");
+          settings.className = "object-settings";
+          const label = document.createElement("label");
+          label.append("Растр объекта");
+          label.append(buildDitherSelect(item));
+          settings.append(label);
+          row.append(settings);
+        }
+
         els.objectList.append(row);
       }
+    }
+
+    function buildDitherSelect(item) {
+      const sel = document.createElement("select");
+      sel.add(new Option("Как в настройках печати", ""));
+      for (const node of els.ditherSelect.children) {
+        sel.appendChild(node.cloneNode(true));
+      }
+      sel.value = item.dither || "";
+      sel.addEventListener("change", () => {
+        item.dither = sel.value;
+        renderObjectList();
+        renderTapeToCanvas();
+      });
+      return sel;
+    }
+
+    function toggleSettings(id) {
+      app.settingsOpenId = app.settingsOpenId === id ? null : id;
+      selectItem(id);
     }
 
     function moveItem(id, direction) {
@@ -1046,6 +1115,7 @@
       const index = app.items.findIndex((item) => item.id === id);
       if (index < 0) return;
       app.items.splice(index, 1);
+      if (app.settingsOpenId === id) app.settingsOpenId = null;
       if (app.activeItemId === id) {
         app.activeItemId = app.items[Math.min(index, app.items.length - 1)]?.id || null;
       }
@@ -1057,6 +1127,7 @@
     function clearItems() {
       app.items = [];
       app.activeItemId = null;
+      app.settingsOpenId = null;
       syncActiveItem();
       renderObjectList();
       renderTapeToCanvas();
@@ -1081,18 +1152,15 @@
     function updateNumbers() {
       syncActiveItem();
       els.paperHeightValue.textContent = String(app.paperHeight);
-      els.scaleValue.textContent = `${Math.round(app.image.scale * 100)}%`;
-      els.offsetXValue.textContent = String(Math.round(app.image.x));
-      els.offsetYValue.textContent = String(Math.round(app.image.y));
+      const activeW = app.sourceCanvas ? app.sourceCanvas.width : PRINT_WIDTH;
+      const widthPct = Math.round(app.image.scale * activeW / PRINT_WIDTH * 100);
+      els.scaleValue.textContent = `${widthPct}%`;
       els.thresholdValue.textContent = els.thresholdInput.value;
       els.contrastValue.textContent = els.contrastInput.value;
-      els.energyValue.textContent = els.energyInput.value;
-      els.scaleInput.value = String(Math.round(app.image.scale * 100));
-      els.offsetXInput.value = String(Math.round(app.image.x));
-      els.offsetYInput.value = String(Math.round(app.image.y));
+      const energyPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      els.energyValue.textContent = `${energyPct}%`;
+      els.scaleInput.value = String(widthPct);
       els.bitmapInfo.textContent = `${PRINT_WIDTH} x ${app.paperHeight} px ≈ ${Math.round(app.paperHeight / 8)} мм`;
-      const item = activeItem();
-      els.itemDitherSelect.value = item ? (item.dither || "") : "";
       const count = app.items.length;
       const label = count ? `${count} ${pluralRu(count, "объект", "объекта", "объектов")}` : "Нет содержимого";
       els.contentInfo.textContent = `${label} · ${app.previewMode === "raster" ? "растр" : "макет"}`;
@@ -1200,8 +1268,27 @@
       } else {
         currentBitmap = null;
       }
+      drawSelectionOverlay(ctx);
       updateNumbers();
       updateUi();
+    }
+
+    function drawSelectionOverlay(ctx) {
+      const item = activeItem();
+      if (!item) return;
+      const drawW = item.canvas.width * item.scale;
+      const drawH = item.canvas.height * item.scale;
+      ctx.save();
+      ctx.translate(item.x + drawW / 2, item.y + drawH / 2);
+      ctx.rotate(item.rotation * Math.PI / 180);
+      ctx.setLineDash([7, 5]);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(231,199,111,0.95)";
+      ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
     }
 
     let renderQueued = false;
@@ -1884,30 +1971,24 @@
       renderTapeToCanvas();
     }
 
-    function fitHeight() {
-      if (!app.sourceCanvas) return;
-      app.image.rotation = 0;
-      app.image.scale = app.paperHeight / app.sourceCanvas.height;
-      const drawW = app.sourceCanvas.width * app.image.scale;
-      app.image.x = (PRINT_WIDTH - drawW) / 2;
-      app.image.y = 0;
-      renderTapeToCanvas();
-    }
-
-    function centerContent() {
+    function setAlign(mode) {
       if (!app.sourceCanvas) return;
       const drawW = app.sourceCanvas.width * app.image.scale;
-      const drawH = app.sourceCanvas.height * app.image.scale;
-      app.image.x = (PRINT_WIDTH - drawW) / 2;
-      app.image.y = (app.paperHeight - drawH) / 2;
+      if (mode === "left") app.image.x = 0;
+      else if (mode === "right") app.image.x = PRINT_WIDTH - drawW;
+      else app.image.x = (PRINT_WIDTH - drawW) / 2;
+      syncActiveItem();
       renderTapeToCanvas();
     }
 
     function rotateContent() {
       if (!app.sourceCanvas) return;
       app.image.rotation = (app.image.rotation + 90) % 360;
-      centerContent();
-      log(`Поворот: ${app.image.rotation} градусов`);
+      const drawW = app.sourceCanvas.width * app.image.scale;
+      app.image.x = (PRINT_WIDTH - drawW) / 2;
+      syncActiveItem();
+      renderTapeToCanvas();
+      log(`Поворот: ${app.image.rotation}°`);
     }
 
     function loadDemo() {
@@ -1955,12 +2036,7 @@
       els.disconnectBtn.disabled = !server;
       els.printBtn.disabled = !server || printing || !app.items.length;
       els.connectBtn.disabled = !!server;
-      const hasSource = !!activeItem();
-      els.fitWidthBtn.disabled = !hasSource;
-      els.fitHeightBtn.disabled = !hasSource;
-      els.centerBtn.disabled = !hasSource;
-      els.rotateBtn.disabled = !hasSource;
-      els.itemDitherSelect.disabled = !hasSource;
+      els.objectPanel.classList.toggle("hidden", !activeItem());
       els.stackBtn.disabled = !app.items.length;
       els.clearObjectsBtn.disabled = !app.items.length;
     }
@@ -2065,7 +2141,7 @@
 
     function connectedStatus() {
       const name = device ? (device.name || device.id) : "";
-      const battery = batteryLevel == null ? "" : ` · 🔋 ${batteryLevel}%`;
+      const battery = batteryLevel == null ? "" : ` · ${batteryLevel}%`;
       return `Подключен: ${name}${battery}`;
     }
 
@@ -2423,9 +2499,10 @@
     els.fontSizeInput.addEventListener("input", refreshActiveText);
     els.textPaddingInput.addEventListener("input", refreshActiveText);
     els.fitWidthBtn.addEventListener("click", fitWidth);
-    els.fitHeightBtn.addEventListener("click", fitHeight);
-    els.centerBtn.addEventListener("click", centerContent);
     els.rotateBtn.addEventListener("click", rotateContent);
+    els.alignLeftBtn.addEventListener("click", () => setAlign("left"));
+    els.alignCenterBtn.addEventListener("click", () => setAlign("center"));
+    els.alignRightBtn.addEventListener("click", () => setAlign("right"));
     els.stackBtn.addEventListener("click", stackItems);
     els.clearObjectsBtn.addEventListener("click", clearItems);
     els.demoBtn.addEventListener("click", loadDemo);
@@ -2435,8 +2512,6 @@
 
     els.paperHeightInput.addEventListener("input", () => {
       app.paperHeight = Number(els.paperHeightInput.value);
-      els.offsetYInput.min = String(-app.paperHeight);
-      els.offsetYInput.max = String(app.paperHeight);
       scheduleRender();
     });
     els.fitTapeBtn.addEventListener("click", () => {
@@ -2446,27 +2521,18 @@
       log(`Лента подогнана: ${app.paperHeight} px`);
     });
     els.scaleInput.addEventListener("input", () => {
-      app.image.scale = Number(els.scaleInput.value) / 100;
-      scheduleRender();
-    });
-    els.offsetXInput.addEventListener("input", () => {
-      app.image.x = Number(els.offsetXInput.value);
-      scheduleRender();
-    });
-    els.offsetYInput.addEventListener("input", () => {
-      app.image.y = Number(els.offsetYInput.value);
+      const item = activeItem();
+      if (!item) return;
+      const newScale = Number(els.scaleInput.value) / 100 * PRINT_WIDTH / item.canvas.width;
+      const cx = item.x + item.canvas.width * item.scale / 2;
+      item.scale = newScale;
+      item.x = cx - item.canvas.width * newScale / 2;
+      syncActiveItem();
       scheduleRender();
     });
     els.thresholdInput.addEventListener("input", scheduleRender);
     els.contrastInput.addEventListener("input", scheduleRender);
     els.ditherSelect.addEventListener("change", () => {
-      renderObjectList();
-      renderTapeToCanvas();
-    });
-    els.itemDitherSelect.addEventListener("change", () => {
-      const item = activeItem();
-      if (!item) return;
-      item.dither = els.itemDitherSelect.value;
       renderObjectList();
       renderTapeToCanvas();
     });
