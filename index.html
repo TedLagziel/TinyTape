@@ -998,7 +998,7 @@
 
     function fitTapeToContent() {
       if (!app.items.length) return;
-      app.paperHeight = clamp(Math.ceil(contentBottom()) + 8, 120, 6000);
+      app.paperHeight = clamp(Math.ceil(contentBottom()), 40, 6000);
       els.paperHeightInput.value = String(app.paperHeight);
     }
 
@@ -1992,44 +1992,129 @@
     }
 
     function loadDemo() {
-      const canvas = document.createElement("canvas");
-      canvas.width = PRINT_WIDTH;
-      canvas.height = 520;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const W = PRINT_WIDTH;
+      const pad = 14;
+      const inW = W - pad * 2;
+      const temp = document.createElement("canvas");
+      temp.width = W;
+      temp.height = 1600;
+      const ctx = temp.getContext("2d", { willReadFrequently: true });
       ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, W, temp.height);
+      ctx.textBaseline = "top";
+      let y = pad;
+
+      const heading = (t) => {
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 12px ui-sans-serif, system-ui, sans-serif";
+        ctx.fillText(t.toUpperCase(), pad, y);
+        y += 17;
+      };
+
+      // Заголовок
       ctx.fillStyle = "#000";
-      ctx.font = "bold 34px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText("TinyTape", 24, 28);
-      ctx.font = "20px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-      ctx.fillText("BLE: AE30 / AE01 / AE02", 24, 86);
-      ctx.fillText("MacBook print queue", 24, 120);
-      ctx.fillRect(24, 166, 336, 3);
-      for (let i = 0; i < 9; i += 1) {
-        ctx.fillRect(24 + i * 38, 210, 22, 22);
+      ctx.font = "bold 28px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("TinyTape · тест", pad, y);
+      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+      ctx.fillText(new Date().toLocaleString(), pad, y + 32);
+      y += 56;
+
+      // Сплошная заливка + выворотка (плотность чёрного)
+      heading("Заливка и выворотка");
+      ctx.fillStyle = "#000";
+      ctx.fillRect(pad, y, inW, 40);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 20px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("Белым по чёрному", pad + 12, y + 9);
+      y += 40 + 12;
+
+      // Градации серого ступенями (тоновая передача)
+      heading("Градации серого");
+      const steps = 11;
+      const sw = inW / steps;
+      for (let i = 0; i < steps; i += 1) {
+        const g = Math.round(255 * (1 - i / (steps - 1)));
+        ctx.fillStyle = `rgb(${g},${g},${g})`;
+        ctx.fillRect(Math.round(pad + i * sw), y, Math.ceil(sw), 36);
       }
+      y += 36 + 12;
+
+      // Плавный градиент (где заваливается в чёрное/белое)
+      heading("Плавный градиент");
+      const grad = ctx.createLinearGradient(pad, 0, pad + inW, 0);
+      grad.addColorStop(0, "#fff");
+      grad.addColorStop(1, "#000");
+      ctx.fillStyle = grad;
+      ctx.fillRect(pad, y, inW, 36);
+      y += 36 + 12;
+
+      // Вертикальные волоски 1px (дефекты/пропуски термоголовки)
+      heading("Вертикальные линии 1px");
+      ctx.fillStyle = "#000";
+      for (let x = pad; x < pad + inW; x += 2) ctx.fillRect(x, y, 1, 28);
+      y += 28 + 10;
+
+      // Горизонтальные волоски 1px (равномерность протяжки)
+      heading("Горизонтальные линии 1px");
+      for (let yy = y; yy < y + 28; yy += 2) ctx.fillRect(pad, yy, inW, 1);
+      y += 28 + 12;
+
+      // Микротекстура — шахматка 1..4 px (мелкий растр)
+      heading("Шахматка 1–4 px");
+      const cb = 42;
+      let cx = pad;
+      for (const cell of [1, 2, 3, 4]) {
+        for (let yy = 0; yy < cb; yy += cell) {
+          for (let xx = 0; xx < cb; xx += cell) {
+            if (((xx / cell) + (yy / cell)) % 2 === 0) ctx.fillRect(cx + xx, y + yy, cell, cell);
+          }
+        }
+        cx += cb + 12;
+      }
+      y += cb + 12;
+
+      // Геометрия — круг и диагонали (искажения, скос)
+      heading("Геометрия");
+      const g2 = 72;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#000";
       ctx.beginPath();
-      ctx.arc(192, 326, 78, 0, Math.PI * 2);
+      ctx.arc(pad + g2 / 2, y + g2 / 2, g2 / 2 - 2, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(164, 302, 11, 0, Math.PI * 2);
-      ctx.arc(220, 302, 11, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(192, 330, 38, .2, Math.PI - .2);
+      ctx.moveTo(pad, y); ctx.lineTo(pad + g2, y + g2);
+      ctx.moveTo(pad + g2, y); ctx.lineTo(pad, y + g2);
       ctx.stroke();
+      ctx.strokeRect(pad + g2 + 22 + 0.5, y + 4 + 0.5, inW - g2 - 22 - 1, g2 - 8);
       ctx.lineWidth = 1;
-      ctx.font = "18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-      ctx.fillText(new Date().toLocaleString(), 24, 458);
+      y += g2 + 12;
+
+      // Мелкий текст (порог читаемости)
+      heading("Мелкий текст");
+      ctx.fillStyle = "#000";
+      for (const size of [10, 12, 14, 18]) {
+        ctx.font = `${size}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.fillText(`${size}px Съешь ещё мягких булочек 0123`, pad, y);
+        y += size + 6;
+      }
+      y += pad;
+
+      // Рамка вокруг карты
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0.5, 0.5, W - 1, y - 1);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = y;
+      canvas.getContext("2d", { willReadFrequently: true }).drawImage(temp, 0, 0);
 
       app.items = [];
       app.activeItemId = null;
-      els.paperHeightInput.value = "620";
-      app.paperHeight = Number(els.paperHeightInput.value);
-      addItem(canvas, "Демо", "image");
+      app.settingsOpenId = null;
+      addItem(canvas, "Тест печати", "image");
       fitWidth();
-      log("Демо подготовлено.");
+      log("Тест-карта подготовлена.");
     }
 
     function updateUi() {
@@ -2037,6 +2122,7 @@
       els.printBtn.disabled = !server || printing || !app.items.length;
       els.connectBtn.disabled = !!server;
       els.objectPanel.classList.toggle("hidden", !activeItem());
+      els.demoBtn.classList.toggle("hidden", app.items.length > 0);
       els.stackBtn.disabled = !app.items.length;
       els.clearObjectsBtn.disabled = !app.items.length;
     }
