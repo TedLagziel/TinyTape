@@ -634,6 +634,22 @@
                 <input id="textPaddingInput" type="number" min="0" max="80" step="1" value="18" />
               </label>
             </div>
+            <div class="field-row">
+              <label>
+                Цвет текста
+                <select id="textColorSelect">
+                  <option value="black" selected>Чёрный</option>
+                  <option value="white">Белый</option>
+                </select>
+              </label>
+              <label>
+                Подложка
+                <select id="textPlateSelect">
+                  <option value="on" selected>Есть</option>
+                  <option value="off">Нет</option>
+                </select>
+              </label>
+            </div>
             <button id="renderTextBtn" type="button">Добавить текст</button>
             <div class="hint">Выбранный текстовый блок редактируется этими полями наживую.</div>
           </div>
@@ -831,6 +847,8 @@
       clearObjectsBtn: document.getElementById("clearObjectsBtn"),
       textInput: document.getElementById("textInput"),
       fontSelect: document.getElementById("fontSelect"),
+      textColorSelect: document.getElementById("textColorSelect"),
+      textPlateSelect: document.getElementById("textPlateSelect"),
       fontSizeInput: document.getElementById("fontSizeInput"),
       textPaddingInput: document.getElementById("textPaddingInput"),
       renderTextBtn: document.getElementById("renderTextBtn"),
@@ -1964,6 +1982,8 @@
         font: els.fontSelect.value,
         fontSize: clamp(Number(els.fontSizeInput.value) || 28, 12, 72),
         padding: clamp(Number(els.textPaddingInput.value) || 0, 0, 80),
+        textColor: els.textColorSelect.value === "white" ? "white" : "black",
+        plate: els.textPlateSelect.value !== "off",
       };
     }
 
@@ -2007,9 +2027,14 @@
       canvas.width = PRINT_WIDTH;
       canvas.height = Math.max(1, params.padding * 2 + lines.length * lineHeight);
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#000";
+      const inkColor = params.textColor === "white" ? "#fff" : "#000";
+      if (params.plate) {
+        // Подложка — контрастного цвета, чтобы текст читался поверх любой картинки.
+        ctx.fillStyle = params.textColor === "white" ? "#000" : "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      // Без подложки холст остаётся прозрачным — сквозь него видно картинку под текстом.
+      ctx.fillStyle = inkColor;
       ctx.textBaseline = "top";
       ctx.font = font;
       lines.forEach((line, index) => {
@@ -2056,6 +2081,8 @@
       els.fontSelect.value = item.font;
       els.fontSizeInput.value = String(item.fontSize);
       els.textPaddingInput.value = String(item.padding);
+      els.textColorSelect.value = item.textColor === "white" ? "white" : "black";
+      els.textPlateSelect.value = item.plate === false ? "off" : "on";
     }
 
     function fitWidth() {
@@ -2719,6 +2746,8 @@
     els.renderTextBtn.addEventListener("click", renderTextSource);
     els.textInput.addEventListener("input", refreshActiveText);
     els.fontSelect.addEventListener("change", refreshActiveText);
+    els.textColorSelect.addEventListener("change", refreshActiveText);
+    els.textPlateSelect.addEventListener("change", refreshActiveText);
     els.fontSizeInput.addEventListener("input", refreshActiveText);
     els.textPaddingInput.addEventListener("input", refreshActiveText);
     els.fitWidthBtn.addEventListener("click", fitWidth);
