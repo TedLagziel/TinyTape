@@ -748,6 +748,13 @@
             </div>
           </label>
           <label>
+            Яркость (компенсация теней)
+            <div class="range-line">
+              <input id="brightnessInput" type="range" min="-100" max="100" value="0" />
+              <span class="range-value" id="brightnessValue">0</span>
+            </div>
+          </label>
+          <label>
             Нагрев
             <div class="range-line">
               <input id="energyInput" type="range" min="12000" max="65535" step="1" value="40000" />
@@ -836,6 +843,8 @@
       thresholdValue: document.getElementById("thresholdValue"),
       contrastInput: document.getElementById("contrastInput"),
       contrastValue: document.getElementById("contrastValue"),
+      brightnessInput: document.getElementById("brightnessInput"),
+      brightnessValue: document.getElementById("brightnessValue"),
       energyInput: document.getElementById("energyInput"),
       energyValue: document.getElementById("energyValue"),
       printSpeedSelect: document.getElementById("printSpeedSelect"),
@@ -1157,6 +1166,7 @@
       els.scaleValue.textContent = `${widthPct}%`;
       els.thresholdValue.textContent = els.thresholdInput.value;
       els.contrastValue.textContent = els.contrastInput.value;
+      els.brightnessValue.textContent = els.brightnessInput.value;
       const energyPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
       els.energyValue.textContent = `${energyPct}%`;
       els.scaleInput.value = String(widthPct);
@@ -1328,6 +1338,11 @@
       const contrast = Number(els.contrastInput.value);
       const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
       value = factor * (value - 128) + 128;
+      const bright = Number(els.brightnessInput.value);
+      if (bright) {
+        const gamma = bright > 0 ? 1 / (1 + bright / 70) : 1 + (-bright) / 70;
+        value = 255 * Math.pow(clamp(value, 0, 255) / 255, gamma);
+      }
       return clamp(Math.round(value), 0, 255);
     }
 
@@ -2001,6 +2016,7 @@
         alg,
         threshold: els.thresholdInput.value,
         contrast: els.contrastInput.value,
+        brightness: els.brightnessInput.value,
         heatPct,
         mode,
       };
@@ -2040,7 +2056,7 @@
       ctx.fillStyle = "#000";
       ctx.font = `12px ${MONO_FONT}`;
       ctx.fillText(`Растр: ${p.alg}`, pad, y); y += 16;
-      ctx.fillText(`Порог ${p.threshold}  ·  Контраст ${p.contrast}`, pad, y); y += 16;
+      ctx.fillText(`Порог ${p.threshold}  ·  Контраст ${p.contrast}  ·  Ярк ${p.brightness}`, pad, y); y += 16;
       ctx.fillText(`Нагрев ${p.heatPct}%  ·  ${p.mode}`, pad, y); y += 16 + 8;
 
       // Сплошная заливка + выворотка (плотность чёрного)
@@ -2657,6 +2673,10 @@
       scheduleRender();
     });
     els.contrastInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
+    els.brightnessInput.addEventListener("input", () => {
       refreshTestCard();
       scheduleRender();
     });
